@@ -1,0 +1,6 @@
+{
+  "name": "Cuma Mesajları",
+  "description": "Her Cuma seçilen kişilere WhatsApp üzerinden resimli ve dualı Cuma mesajlarını zamanlayıcı ile kolayca gönderin.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
