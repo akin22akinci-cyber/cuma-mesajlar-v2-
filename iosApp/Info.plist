@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>tr</string>
+	<key>CFBundleDisplayName</key>
+	<string>Cuma Mesajları</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.aistudio.cumamesajlari</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>Cuma Mesajları</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSContactsUsageDescription</key>
+	<string>Cuma tebrik kartlarınızı sevdiklerinize kolayca gönderebilmeniz için rehberinizdeki kişileri listelemek amacıyla izin gereklidir.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Cuma kartı arka planı olarak galerinizden kendi cami ve manzara fotoğraflarınızı seçebilmeniz için fotoğraf kitaplığınıza erişim izni gereklidir.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>whatsapp</string>
+		<string>tg</string>
+		<string>instagram</string>
+		<string>fb-messenger</string>
+		<string>fb</string>
+		<string>snapchat</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+</dict>
+</plist>

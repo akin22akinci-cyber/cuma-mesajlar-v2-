@@ -20,118 +20,161 @@ object CardGenerator {
         imageKeyOrPath: String,
         messageText: String,
         signature: String = "",
-        recipientName: String = ""
+        recipientName: String = "",
+        fontStyle: String = "Serif",
+        frameStyle: String = "Gold",
+        textSizeModifier: Float = 1.0f,
+        textColorHex: String = "#FFFFFF"
     ): Uri? = withContext(Dispatchers.IO) {
         try {
-            // Load base bitmap
+            // Load base bitmap (handles resources, internal files, and content:// URIs from photo picker)
             val baseBitmap: Bitmap = loadBitmap(context, imageKeyOrPath)
 
-            // Scale to standard card dimension (e.g. 1080 x 1440)
+            // High resolution vertical card dimension (1080 x 1440)
             val targetWidth = 1080
             val targetHeight = 1440
             val cardBitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(cardBitmap)
 
-            // Draw and scale base photo nicely to fill
+            // Fill base photo
             val srcRect = Rect(0, 0, baseBitmap.width, baseBitmap.height)
             val dstRect = Rect(0, 0, targetWidth, targetHeight)
             val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
             canvas.drawBitmap(baseBitmap, srcRect, dstRect, paint)
 
-            // Draw dark vignette & gradient over the lower 70% of image for great text readability
+            // Dynamic vignette based on frame/theme style
             val gradientPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 shader = LinearGradient(
-                    0f, targetHeight * 0.25f,
+                    0f, targetHeight * 0.20f,
                     0f, targetHeight.toFloat(),
                     intArrayOf(
-                        android.graphics.Color.argb(40, 0, 0, 0),
-                        android.graphics.Color.argb(190, 6, 28, 20),
-                        android.graphics.Color.argb(240, 4, 18, 13)
+                        android.graphics.Color.argb(20, 0, 0, 0),
+                        android.graphics.Color.argb(170, 2, 22, 16),
+                        android.graphics.Color.argb(235, 1, 12, 9),
+                        android.graphics.Color.argb(250, 0, 8, 6)
                     ),
-                    floatArrayOf(0f, 0.45f, 1f),
+                    floatArrayOf(0f, 0.35f, 0.75f, 1f),
                     Shader.TileMode.CLAMP
                 )
             }
             canvas.drawRect(0f, 0f, targetWidth.toFloat(), targetHeight.toFloat(), gradientPaint)
 
-            // Draw top subtle vignette
+            // Top soft vignette for contrast
             val topVignette = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 shader = LinearGradient(
-                    0f, 0f, 0f, 300f,
+                    0f, 0f, 0f, 260f,
                     intArrayOf(
-                        android.graphics.Color.argb(160, 0, 20, 14),
+                        android.graphics.Color.argb(180, 0, 16, 11),
                         android.graphics.Color.TRANSPARENT
                     ),
                     null,
                     Shader.TileMode.CLAMP
                 )
             }
-            canvas.drawRect(0f, 0f, targetWidth.toFloat(), 300f, topVignette)
+            canvas.drawRect(0f, 0f, targetWidth.toFloat(), 260f, topVignette)
 
-            // Gold ornate frame
-            val goldPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = android.graphics.Color.parseColor("#E5BE65")
-                style = Paint.Style.STROKE
-                strokeWidth = 4f
+            val frameMargin = 44f
+            val frameColor = when (frameStyle) {
+                "Emerald" -> android.graphics.Color.parseColor("#38D39F")
+                "Minimal" -> android.graphics.Color.parseColor("#40FFFFFF")
+                "Lantern" -> android.graphics.Color.parseColor("#FFD54F")
+                else -> android.graphics.Color.parseColor("#E5BE65") // Gold
             }
-            val frameMargin = 48f
-            canvas.drawRect(
-                frameMargin, frameMargin,
-                targetWidth - frameMargin, targetHeight - frameMargin,
-                goldPaint
-            )
 
-            // Inner thin line
-            val innerGoldPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = android.graphics.Color.parseColor("#99E5BE65")
-                style = Paint.Style.STROKE
-                strokeWidth = 1.5f
+            if (frameStyle != "Minimal") {
+                // Outer ornate border
+                val outerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = frameColor
+                    style = Paint.Style.STROKE
+                    strokeWidth = 4f
+                }
+                canvas.drawRect(
+                    frameMargin, frameMargin,
+                    targetWidth - frameMargin, targetHeight - frameMargin,
+                    outerPaint
+                )
+
+                // Corner ornamental accents
+                drawCornerAccents(canvas, frameMargin, targetWidth.toFloat(), targetHeight.toFloat(), outerPaint)
+
+                // Inner thin line
+                val innerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = android.graphics.Color.argb(120, android.graphics.Color.red(frameColor), android.graphics.Color.green(frameColor), android.graphics.Color.blue(frameColor))
+                    style = Paint.Style.STROKE
+                    strokeWidth = 1.5f
+                }
+                canvas.drawRect(
+                    frameMargin + 12f, frameMargin + 12f,
+                    targetWidth - frameMargin - 12f, targetHeight - frameMargin - 12f,
+                    innerPaint
+                )
             }
-            canvas.drawRect(
-                frameMargin + 12f, frameMargin + 12f,
-                targetWidth - frameMargin - 12f, targetHeight - frameMargin - 12f,
-                innerGoldPaint
-            )
+
+            // Typeface based on user's choice
+            val typeface = when (fontStyle) {
+                "Sans" -> Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+                "Script" -> Typeface.create(Typeface.SERIF, Typeface.ITALIC)
+                "Bold" -> Typeface.create(Typeface.SERIF, Typeface.BOLD)
+                else -> Typeface.create(Typeface.SERIF, Typeface.NORMAL)
+            }
 
             // Header "HAYIRLI CUMALAR"
             val titlePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = android.graphics.Color.parseColor("#FFF3D0")
-                textSize = 58f
-                typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
+                color = when (frameStyle) {
+                    "Emerald" -> android.graphics.Color.parseColor("#E8FFF5")
+                    else -> android.graphics.Color.parseColor("#FFF3D0")
+                }
+                textSize = 56f
+                this.typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
                 textAlign = Paint.Align.CENTER
                 setShadowLayer(8f, 0f, 4f, android.graphics.Color.BLACK)
             }
 
-            // Subtitle / Bismillah ornament
             val ornamentPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = android.graphics.Color.parseColor("#E5BE65")
-                textSize = 34f
+                color = frameColor
+                textSize = 36f
                 textAlign = Paint.Align.CENTER
             }
 
-            canvas.drawText("✦ ﷽ ✦", targetWidth / 2f, 150f, ornamentPaint)
-            canvas.drawText("HAYIRLI CUMALAR", targetWidth / 2f, 225f, titlePaint)
+            val ornamentSymbol = when (frameStyle) {
+                "Lantern" -> "✨ ﷽ ✨"
+                "Emerald" -> "🌿 ﷽ 🌿"
+                else -> "✦ ﷽ ✦"
+            }
 
-            // Decorative horizontal gold divider
-            val divY = 265f
-            canvas.drawLine(targetWidth / 2f - 180f, divY, targetWidth / 2f + 180f, divY, goldPaint)
+            canvas.drawText(ornamentSymbol, targetWidth / 2f, 135f, ornamentPaint)
+            canvas.drawText("HAYIRLI CUMALAR", targetWidth / 2f, 215f, titlePaint)
+
+            // Divider
+            val divY = 255f
+            val divPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = frameColor
+                strokeWidth = 3f
+            }
+            canvas.drawLine(targetWidth / 2f - 180f, divY, targetWidth / 2f + 180f, divY, divPaint)
             canvas.drawCircle(targetWidth / 2f, divY, 6f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = android.graphics.Color.parseColor("#FFF3D0")
+                color = android.graphics.Color.WHITE
             })
 
-            // Prepared personalized text
+            // Prepared text with name replacement
             var processedText = messageText
             if (recipientName.isNotBlank()) {
                 processedText = processedText.replace("{isim}", recipientName)
             } else {
-                processedText = processedText.replace("{isim}", "")
+                processedText = processedText.replace("{isim}", "").trim()
             }
 
-            // Message text layout
+            // Message text paint
+            val parsedTextColor = try {
+                android.graphics.Color.parseColor(textColorHex)
+            } catch (_: Exception) {
+                android.graphics.Color.WHITE
+            }
+
             val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = android.graphics.Color.WHITE
-                textSize = 42f
-                typeface = Typeface.create(Typeface.SERIF, Typeface.NORMAL)
+                color = parsedTextColor
+                textSize = 42f * textSizeModifier
+                this.typeface = typeface
                 setShadowLayer(6f, 0f, 3f, android.graphics.Color.BLACK)
             }
 
@@ -147,9 +190,9 @@ object CardGenerator {
                 .setLineSpacing(10f, 1.25f)
                 .build()
 
-            // Calculate vertical center in bottom area
-            val availableHeight = targetHeight - 320f - 180f
-            val textTopY = 320f + (availableHeight - staticLayout.height) / 2f
+            // Vertical center
+            val availableHeight = targetHeight - 300f - 160f
+            val textTopY = 300f + (availableHeight - staticLayout.height) / 2f
 
             canvas.save()
             canvas.translate((targetWidth - textWidth) / 2f, textTopY)
@@ -160,18 +203,18 @@ object CardGenerator {
             val signatureText = when {
                 signature.isNotBlank() -> signature
                 recipientName.isNotBlank() -> "Selam ve Dua İle..."
-                else -> "Dualarınızın Kabul Olması Dileğiyle"
+                else -> "Dualarınızın Kabul Olması Dileğiyle 🤲"
             }
             val signPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = android.graphics.Color.parseColor("#E5BE65")
+                color = frameColor
                 textSize = 34f
-                typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.ITALIC)
+                this.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.ITALIC)
                 textAlign = Paint.Align.CENTER
-                setShadowLayer(4f, 0f, 2f, android.graphics.Color.BLACK)
+                setShadowLayer(5f, 0f, 2f, android.graphics.Color.BLACK)
             }
-            canvas.drawText(signatureText, targetWidth / 2f, targetHeight - 100f, signPaint)
+            canvas.drawText(signatureText, targetWidth / 2f, targetHeight - 90f, signPaint)
 
-            // Save to FileProvider cache file
+            // Cache File
             val sharedDir = File(context.cacheDir, "shared")
             if (!sharedDir.exists()) {
                 sharedDir.mkdirs()
@@ -193,27 +236,39 @@ object CardGenerator {
         }
     }
 
+    private fun drawCornerAccents(canvas: Canvas, margin: Float, width: Float, height: Float, paint: Paint) {
+        val accentSize = 24f
+        canvas.drawLine(margin, margin + accentSize, margin + accentSize, margin, paint)
+        canvas.drawLine(width - margin - accentSize, margin, width - margin, margin + accentSize, paint)
+        canvas.drawLine(margin, height - margin - accentSize, margin + accentSize, height - margin, paint)
+        canvas.drawLine(width - margin - accentSize, height - margin, width - margin, height - margin - accentSize, paint)
+    }
+
     private fun loadBitmap(context: Context, keyOrPath: String): Bitmap {
         return try {
-            when (keyOrPath) {
-                "mosque_sunset" -> BitmapFactory.decodeResource(context.resources, R.drawable.img_mosque_sunset)
-                "mosque_spiritual" -> BitmapFactory.decodeResource(context.resources, R.drawable.img_mosque_spiritual)
-                else -> {
-                    if (keyOrPath.startsWith("/")) {
-                        val file = File(keyOrPath)
-                        if (file.exists()) {
-                            BitmapFactory.decodeFile(file.absolutePath)
-                                ?: BitmapFactory.decodeResource(context.resources, R.drawable.img_mosque_sunset)
-                        } else {
-                            BitmapFactory.decodeResource(context.resources, R.drawable.img_mosque_sunset)
-                        }
+            when {
+                keyOrPath == "mosque_sunset" -> BitmapFactory.decodeResource(context.resources, R.drawable.img_mosque_sunset)
+                keyOrPath == "mosque_spiritual" -> BitmapFactory.decodeResource(context.resources, R.drawable.img_mosque_spiritual)
+                keyOrPath == "mosque_night" -> BitmapFactory.decodeResource(context.resources, R.drawable.img_mosque_night)
+                keyOrPath == "mosque_interior" -> BitmapFactory.decodeResource(context.resources, R.drawable.img_mosque_interior)
+                keyOrPath.startsWith("content://") -> {
+                    val uri = Uri.parse(keyOrPath)
+                    context.contentResolver.openInputStream(uri)?.use { stream ->
+                        BitmapFactory.decodeStream(stream)
+                    } ?: BitmapFactory.decodeResource(context.resources, R.drawable.img_mosque_sunset)
+                }
+                keyOrPath.startsWith("/") -> {
+                    val file = File(keyOrPath)
+                    if (file.exists()) {
+                        BitmapFactory.decodeFile(file.absolutePath)
+                            ?: BitmapFactory.decodeResource(context.resources, R.drawable.img_mosque_sunset)
                     } else {
                         BitmapFactory.decodeResource(context.resources, R.drawable.img_mosque_sunset)
                     }
                 }
+                else -> BitmapFactory.decodeResource(context.resources, R.drawable.img_mosque_sunset)
             }
         } catch (_: Exception) {
-            // Fallback gradient solid bitmap
             val fallback = Bitmap.createBitmap(800, 1000, Bitmap.Config.ARGB_8888)
             val c = Canvas(fallback)
             c.drawColor(android.graphics.Color.parseColor("#004D36"))

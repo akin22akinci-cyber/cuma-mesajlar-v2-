@@ -16,7 +16,7 @@ import com.example.data.model.SentLog
         FridaySchedule::class,
         SentLog::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class CumaDatabase : RoomDatabase() {
@@ -35,7 +35,9 @@ abstract class CumaDatabase : RoomDatabase() {
                     context.applicationContext,
                     CumaDatabase::class.java,
                     "cuma_mesajlari_db"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }

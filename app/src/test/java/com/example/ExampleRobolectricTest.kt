@@ -47,4 +47,19 @@ class ExampleRobolectricTest {
     assertEquals(9, cal.get(Calendar.HOUR_OF_DAY))
     assertEquals(0, cal.get(Calendar.MINUTE))
   }
+
+  @Test
+  fun `test social platform packages`() {
+    val platforms = com.example.util.SocialPlatform.values()
+    assertTrue(platforms.any { it.id == "telegram" })
+    assertTrue(platforms.any { it.id == "instagram" })
+    assertTrue(platforms.any { it.id == "messenger" })
+    assertTrue(platforms.any { it.id == "snapchat" })
+    assertTrue(platforms.any { it.id == "facebook" })
+  }
+
+  @Test
+  fun `test default contacts initially empty`() {
+    assertTrue("Initial recipients should be empty", com.example.data.sample.DefaultData.sampleRecipients.isEmpty())
+  }
 }

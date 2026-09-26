@@ -22,13 +22,8 @@ class CumaRepository(private val database: CumaDatabase) {
         if (scheduleDao.getSchedule() == null) {
             scheduleDao.setSchedule(DefaultData.defaultSchedule)
         }
-        val currentRecipients = recipientDao.getSelectedRecipientsList()
-        if (currentRecipients.isEmpty()) {
-            val all = recipientDao.getAllRecipients().firstOrNull() ?: emptyList()
-            if (all.isEmpty()) {
-                recipientDao.insertRecipients(DefaultData.sampleRecipients)
-            }
-        }
+        // Contacts are initially empty so users can populate from their own phone
+        // No sample fake contacts inserted
     }
 
     // Recipients

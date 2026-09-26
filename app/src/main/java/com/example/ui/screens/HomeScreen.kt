@@ -58,6 +58,8 @@ fun HomeScreen(
     val currentMessage = messages.find { it.id == currentSchedule.selectedMessageId }
         ?: messages.firstOrNull()
 
+    var showSocialShareSheet by remember { mutableStateOf(false) }
+
     // Calculate remaining time
     val nextMillis = remember(currentSchedule.hour, currentSchedule.minute) {
         AlarmScheduler.calculateNextFridayMillis(currentSchedule.hour, currentSchedule.minute)
@@ -280,6 +282,22 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("WhatsApp Durumunda / Grupta Paylaş")
                     }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Multi-platform social share button
+                    FilledTonalButton(
+                        onClick = { showSocialShareSheet = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .testTag("share_all_social_button"),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Public, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Telegram, Insta, Messenger, Snapchat'te Paylaş")
+                    }
                 }
             }
         }
@@ -460,6 +478,14 @@ fun HomeScreen(
                 }
             }
         }
+    }
+
+    if (showSocialShareSheet) {
+        SocialShareSheet(
+            message = currentMessage?.content ?: "Hayırlı Cumalar",
+            imageUri = previewUri,
+            onDismiss = { showSocialShareSheet = false }
+        )
     }
 }
 

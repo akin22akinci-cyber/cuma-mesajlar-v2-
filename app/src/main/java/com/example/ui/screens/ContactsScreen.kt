@@ -190,22 +190,93 @@ fun ContactsScreen(viewModel: CumaViewModel) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(32.dp),
+                        .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Default.PersonSearch,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = if (searchQuery.isNotEmpty()) "Aramaya uygun kişi bulunamadı." else "Henüz kişi eklenmedi.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Card(
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .background(EmeraldPrimary.copy(alpha = 0.12f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.ContactPhone,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(36.dp),
+                                    tint = EmeraldPrimary
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Text(
+                                text = if (searchQuery.isNotEmpty()) "Aramaya Uygun Kişi Bulunamadı" else "Rehberiniz Henüz Boş",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Text(
+                                text = if (searchQuery.isNotEmpty())
+                                    "Farklı bir isim veya telefon numarası deneyebilirsiniz."
+                                else
+                                    "Cuma mesajlarınızı göndermek istediğiniz sevdiklerinizi telefon rehberinizden tek tıkla aktarabilir veya elle ekleyebilirsiniz.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+
+                            if (searchQuery.isEmpty()) {
+                                Spacer(modifier = Modifier.height(20.dp))
+
+                                Button(
+                                    onClick = {
+                                        val hasPermission = ContextCompat.checkSelfPermission(
+                                            context,
+                                            Manifest.permission.READ_CONTACTS
+                                        ) == PackageManager.PERMISSION_GRANTED
+                                        if (hasPermission) {
+                                            viewModel.importPhoneContacts()
+                                        } else {
+                                            contactPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Telefon Rehberinden Aktar", fontWeight = FontWeight.Bold)
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                OutlinedButton(
+                                    onClick = { showAddDialog = true },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(46.dp),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Yeni Kişi Ekle")
+                                }
+                            }
+                        }
                     }
                 }
             } else {

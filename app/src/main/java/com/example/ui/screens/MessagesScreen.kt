@@ -35,8 +35,9 @@ fun MessagesScreen(viewModel: CumaViewModel) {
 
     val currentSchedule = schedule ?: DefaultData.defaultSchedule
     var showAddMessageDialog by remember { mutableStateOf(false) }
+    var sharingMessageText by remember { mutableStateOf<String?>(null) }
 
-    val categories = listOf("Tümü", "Ayet & Hadis", "Dualar & Bereket", "Samimi & Kısa", "Akraba & Büyükler", "Özel")
+    val categories = listOf("Tümü", "Ayet & Hadis", "Dualar & Bereket", "Samimi & Kısa", "Akraba & Büyükler", "Peygamberimizin Duaları", "Özel")
 
     val filteredMessages = remember(messages, currentCategory) {
         if (currentCategory == "Tümü") messages
@@ -68,18 +69,35 @@ fun MessagesScreen(viewModel: CumaViewModel) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Cuma Mesajları Arşivi",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Ayetli, dualı ve samimi Cuma tebriklerini seçin veya kendi mesajınızı yazın.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Cuma Mesajları Arşivi",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Ayetli, dualı ve samimi Cuma tebriklerini seçin.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                        FilledTonalButton(
+                            onClick = { viewModel.selectRandomMessage() },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Shuffle, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Rastgele Seç", fontSize = 12.sp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -111,10 +129,7 @@ fun MessagesScreen(viewModel: CumaViewModel) {
                         onToggleFavorite = { viewModel.toggleMessageFavorite(message.id, !message.isFavorite) },
                         onDelete = { viewModel.deleteMessage(message) },
                         onShare = {
-                            WhatsAppSender.shareGeneralToWhatsApp(
-                                context = context,
-                                message = message.content
-                            )
+                            sharingMessageText = message.content
                         }
                     )
                     Spacer(modifier = Modifier.height(10.dp))
@@ -133,6 +148,14 @@ fun MessagesScreen(viewModel: CumaViewModel) {
                 viewModel.addMessage(title, content, cat)
                 showAddMessageDialog = false
             }
+        )
+    }
+
+    sharingMessageText?.let { msg ->
+        SocialShareSheet(
+            message = msg,
+            imageUri = null,
+            onDismiss = { sharingMessageText = null }
         )
     }
 }

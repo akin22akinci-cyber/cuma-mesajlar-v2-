@@ -132,7 +132,7 @@ class CumaViewModel(application: Application) : AndroidViewModel(application) {
     fun addMessage(title: String, content: String, category: String = "Özel") {
         viewModelScope.launch {
             if (content.isNotBlank()) {
-                repository.addMessage(
+                val id = repository.addMessage(
                     FridayMessage(
                         title = title.ifBlank { "Özel Mesaj" },
                         content = content.trim(),
@@ -140,7 +140,19 @@ class CumaViewModel(application: Application) : AndroidViewModel(application) {
                         isCustom = true
                     )
                 )
-                _statusMessage.value = "Yeni Cuma mesajı kaydedildi."
+                updateSelectedMessage(id)
+                _statusMessage.value = "Yeni Cuma mesajı kaydedildi ve seçildi."
+            }
+        }
+    }
+
+    fun selectRandomMessage() {
+        viewModelScope.launch {
+            val list = messages.value
+            if (list.isNotEmpty()) {
+                val random = list.random()
+                updateSelectedMessage(random.id)
+                _statusMessage.value = "Bu Cuma için yeni bir mesaj seçildi: ${random.title}"
             }
         }
     }
@@ -157,7 +169,7 @@ class CumaViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Schedule Actions
+    // Schedule & Visual Typography Actions
     fun updateScheduleTime(hour: Int, minute: Int) {
         viewModelScope.launch {
             val curr = schedule.value ?: DefaultData.defaultSchedule
@@ -201,6 +213,45 @@ class CumaViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun pickCustomPhotoUri(uri: Uri) {
+        viewModelScope.launch {
+            updateSelectedImageKey(uri.toString())
+            _statusMessage.value = "Fotoğraf galerinizden başarıyla seçildi!"
+        }
+    }
+
+    fun updateFontStyle(style: String) {
+        viewModelScope.launch {
+            val curr = schedule.value ?: DefaultData.defaultSchedule
+            repository.updateSchedule(curr.copy(fontStyle = style))
+            generatePreviewCard()
+        }
+    }
+
+    fun updateFrameStyle(style: String) {
+        viewModelScope.launch {
+            val curr = schedule.value ?: DefaultData.defaultSchedule
+            repository.updateSchedule(curr.copy(frameStyle = style))
+            generatePreviewCard()
+        }
+    }
+
+    fun updateTextSizeModifier(modifier: Float) {
+        viewModelScope.launch {
+            val curr = schedule.value ?: DefaultData.defaultSchedule
+            repository.updateSchedule(curr.copy(textSizeModifier = modifier))
+            generatePreviewCard()
+        }
+    }
+
+    fun updateTextColorHex(hex: String) {
+        viewModelScope.launch {
+            val curr = schedule.value ?: DefaultData.defaultSchedule
+            repository.updateSchedule(curr.copy(textColorHex = hex))
+            generatePreviewCard()
+        }
+    }
+
     fun updateSenderSignature(signature: String) {
         viewModelScope.launch {
             val curr = schedule.value ?: DefaultData.defaultSchedule
@@ -229,7 +280,11 @@ class CumaViewModel(application: Application) : AndroidViewModel(application) {
                 imageKeyOrPath = sched.selectedImageKey,
                 messageText = msg.content,
                 signature = sched.senderSignature,
-                recipientName = ""
+                recipientName = "",
+                fontStyle = sched.fontStyle,
+                frameStyle = sched.frameStyle,
+                textSizeModifier = sched.textSizeModifier,
+                textColorHex = sched.textColorHex
             )
             _previewCardUri.value = uri
         }
@@ -243,10 +298,10 @@ class CumaViewModel(application: Application) : AndroidViewModel(application) {
             _isProcessing.value = false
             if (localPath != null) {
                 updateSelectedImageKey(localPath)
-                _statusMessage.value = "Resim başarıyla indirildi ve seçildi!"
+                _statusMessage.value = "Pinterest resmi başarıyla indirildi ve seçildi!"
                 onComplete(true)
             } else {
-                _statusMessage.value = "Resim indirilemedi. Lütfen geçerli bir resim linki girin."
+                _statusMessage.value = "Resim indirilemedi. Lütfen geçerli bir Pinterest veya resim linki girin."
                 onComplete(false)
             }
         }
@@ -257,7 +312,7 @@ class CumaViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val targets = selectedRecipients.value
             if (targets.isEmpty()) {
-                _statusMessage.value = "Lütfen önce mesaj gönderilecek kişileri seçin."
+                _statusMessage.value = "Lütfen önce mesaj gönderilecek kişileri seçin veya rehberden aktarın."
                 return@launch
             }
 
@@ -267,13 +322,16 @@ class CumaViewModel(application: Application) : AndroidViewModel(application) {
 
             val rawMessage = msg?.content ?: "Hayırlı Cumalar dilerim."
 
-            // Generate card if merge enabled
             val cardUri = if (sched.mergeTextOnImage) {
                 CardGenerator.generateCardImage(
                     context = getApplication(),
                     imageKeyOrPath = sched.selectedImageKey,
                     messageText = rawMessage,
-                    signature = sched.senderSignature
+                    signature = sched.senderSignature,
+                    fontStyle = sched.fontStyle,
+                    frameStyle = sched.frameStyle,
+                    textSizeModifier = sched.textSizeModifier,
+                    textColorHex = sched.textColorHex
                 )
             } else null
 

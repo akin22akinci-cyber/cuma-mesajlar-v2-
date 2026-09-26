@@ -2,6 +2,9 @@ package com.example.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -10,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
@@ -35,7 +39,6 @@ import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GoldAccent
 import com.example.ui.viewmodel.CumaViewModel
 import com.example.util.PinterestHelper
-import com.example.util.WhatsAppSender
 
 @Composable
 fun CardCreatorScreen(viewModel: CumaViewModel) {
@@ -43,14 +46,46 @@ fun CardCreatorScreen(viewModel: CumaViewModel) {
     val schedule by viewModel.schedule.collectAsState()
     val previewUri by viewModel.previewCardUri.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
+    val messages by viewModel.messages.collectAsState()
 
     val currentSchedule = schedule ?: DefaultData.defaultSchedule
+    val currentMessage = messages.find { it.id == currentSchedule.selectedMessageId }
+        ?: messages.firstOrNull()
+
     var pinterestInputUrl by remember { mutableStateOf("") }
     var signatureInput by remember { mutableStateOf(currentSchedule.senderSignature) }
+    var showShareSheet by remember { mutableStateOf(false) }
 
-    val defaultGallery = listOf(
-        Pair("mosque_sunset", "Sultanahmet Günbatımı"),
-        Pair("mosque_spiritual", "Manevi Avlu ve Güller")
+    // Modern Zero-Permission Photo Picker (Android 13+ and backported to Android 4.4+)
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.pickCustomPhotoUri(uri)
+        }
+    }
+
+    val mosqueGallery = PinterestHelper.curatedMosqueGallery
+
+    val fontStyles = listOf(
+        Pair("Serif", "Klasik Hat"),
+        Pair("Sans", "Modern Sans"),
+        Pair("Script", "Zarif İtalik"),
+        Pair("Bold", "Belirgin Kalın")
+    )
+
+    val frameStyles = listOf(
+        Pair("Gold", "Altın Varak"),
+        Pair("Emerald", "Zümrüt Bordür"),
+        Pair("Lantern", "Kandil & Hilal"),
+        Pair("Minimal", "Sade / Çerçevesiz")
+    )
+
+    val colorOptions = listOf(
+        Pair("#FFFFFF", "Saf Beyaz"),
+        Pair("#FFF3D0", "Altın Krem"),
+        Pair("#E8FFF5", "Zümrüt Nuru"),
+        Pair("#FFE4E1", "Gül Ferahı")
     )
 
     LaunchedEffect(Unit) {
@@ -63,15 +98,15 @@ fun CardCreatorScreen(viewModel: CumaViewModel) {
             .testTag("card_creator_screen"),
         contentPadding = PaddingValues(16.dp)
     ) {
-        // Top Card Preview
+        // Top Card Live Preview
         item {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("card_preview_container"),
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -82,12 +117,19 @@ fun CardCreatorScreen(viewModel: CumaViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Canlı Cuma Kartı Önizleme",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Column {
+                            Text(
+                                text = "Canlı Cuma Kartı Stüdyosu",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "Fotoğraf, hat yazısı ve süslemeler canlı güncellenir",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
 
                         IconButton(onClick = { viewModel.generatePreviewCard() }) {
                             Icon(Icons.Default.Refresh, contentDescription = "Yenile", tint = EmeraldPrimary)
@@ -100,8 +142,8 @@ fun CardCreatorScreen(viewModel: CumaViewModel) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(340.dp)
-                            .clip(RoundedCornerShape(16.dp))
+                            .height(350.dp)
+                            .clip(RoundedCornerShape(18.dp))
                             .background(Color.Black),
                         contentAlignment = Alignment.Center
                     ) {
@@ -119,25 +161,49 @@ fun CardCreatorScreen(viewModel: CumaViewModel) {
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Test Send Button
+                    // Share to all platforms button
                     Button(
+                        onClick = { showShareSheet = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                            .testTag("share_card_button"),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary)
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = null, tint = Color.White)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Kartı Paylaş (WhatsApp, Telegram, Insta, FB)",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Generate Harmonized Prayer for this image button
+                    FilledTonalButton(
                         onClick = {
-                            WhatsAppSender.shareGeneralToWhatsApp(
-                                context = context,
-                                message = "Hayırlı Cumalar",
-                                imageUri = previewUri
+                            val harmonizedPrayer = PinterestHelper.generateMatchingPrayerForImage(
+                                currentSchedule.selectedImageKey,
+                                currentSchedule.senderSignature
+                            )
+                            viewModel.addMessage(
+                                title = "Görsele Özel Cuma Duası",
+                                content = harmonizedPrayer,
+                                category = "Özel"
                             )
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp)
-                            .testTag("test_share_card_button"),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366))
+                            .height(44.dp)
+                            .testTag("generate_harmonized_message_button")
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color.White)
+                        Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = GoldAccent, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Kartı WhatsApp ile Test Et", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Bu Görsele Uygun Anlamlı Dua Oluştur", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     }
                 }
             }
@@ -145,68 +211,75 @@ fun CardCreatorScreen(viewModel: CumaViewModel) {
 
         item { Spacer(modifier = Modifier.height(16.dp)) }
 
-        // Pinterest Search & Download Section
+        // Section 1: Photo Options (Gallery, Pinterest, Presets)
         item {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("pinterest_section"),
+                    .testTag("photo_selection_section"),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.CloudDownload,
-                            contentDescription = null,
-                            tint = Color(0xFFE60023), // Pinterest Red
-                            modifier = Modifier.size(26.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "Pinterest Cami ve Cuma Fotoğrafları",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "Pinterest aramasından beğendiğiniz fotoğrafları doğrudan indirin.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                    Text(
+                        text = "1. Fotoğraf Kaynağı Seçin",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Telefonunuzdan kendi fotoğrafınızı yükleyin, Pinterest'ten indirin veya hazır manevi koleksiyonu kullanın.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Buttons: Pick Photo & Pinterest
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = {
+                                photoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(46.dp)
+                                .testTag("pick_from_gallery_button"),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Galeriden Seç", fontSize = 13.sp)
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        OutlinedButton(
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(PinterestHelper.PINTEREST_SEARCH_URL))
+                                context.startActivity(intent)
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(46.dp)
+                                .testTag("open_pinterest_search_button"),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Pinterest Aç", fontSize = 13.sp)
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    // Open Pinterest search button
-                    OutlinedButton(
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(PinterestHelper.PINTEREST_SEARCH_URL))
-                            context.startActivity(intent)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp)
-                            .testTag("open_pinterest_button"),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Pinterest'te Cami ve Cuma Fotoğraflarını Aç")
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Paste link and download
+                    // Download URL textfield
                     OutlinedTextField(
                         value = pinterestInputUrl,
                         onValueChange = { pinterestInputUrl = it },
                         label = { Text("Pinterest veya Web Resim Linki") },
-                        placeholder = { Text("https://...") },
+                        placeholder = { Text("https://tr.pinterest.com/pin/... veya resim linki") },
                         singleLine = true,
                         trailingIcon = {
                             if (pinterestInputUrl.isNotEmpty()) {
@@ -223,96 +296,66 @@ fun CardCreatorScreen(viewModel: CumaViewModel) {
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Button(
-                        onClick = {
-                            if (pinterestInputUrl.isNotBlank()) {
+                    if (pinterestInputUrl.isNotBlank()) {
+                        FilledTonalButton(
+                            onClick = {
                                 viewModel.downloadWebImage(pinterestInputUrl) { success ->
-                                    if (success) {
-                                        pinterestInputUrl = ""
-                                    }
+                                    if (success) pinterestInputUrl = ""
                                 }
+                            },
+                            enabled = !isProcessing,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (isProcessing) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Resim İndiriliyor...")
+                            } else {
+                                Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("İnternetten İndir ve Kart Yap")
                             }
-                        },
-                        enabled = pinterestInputUrl.isNotBlank() && !isProcessing,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(46.dp)
-                            .testTag("download_pinterest_button"),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary)
-                    ) {
-                        if (isProcessing) {
-                            CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("İndiriliyor...")
-                        } else {
-                            Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Resmi İndir ve Kart Yap")
                         }
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
-                }
-            }
-        }
 
-        item { Spacer(modifier = Modifier.height(16.dp)) }
+                    Spacer(modifier = Modifier.height(10.dp))
 
-        // Local Mosque Gallery
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("gallery_section"),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Hazır Manevi Cami Fotoğrafları",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Kartınızın arka planında kullanmak istediğiniz fotoğrafı seçin:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "Veya Hazır Manevi Fotoğraflardan Seçin:",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        items(defaultGallery) { (key, title) ->
-                            val isSelected = currentSchedule.selectedImageKey == key
+                        items(mosqueGallery) { asset ->
+                            val isSelected = currentSchedule.selectedImageKey == asset.key
 
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier
-                                    .width(130.dp)
-                                    .clickable { viewModel.updateSelectedImageKey(key) }
+                                    .width(110.dp)
+                                    .clickable { viewModel.updateSelectedImageKey(asset.key) }
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(130.dp, 160.dp)
-                                        .clip(RoundedCornerShape(14.dp))
+                                        .size(110.dp, 135.dp)
+                                        .clip(RoundedCornerShape(12.dp))
                                         .border(
                                             width = if (isSelected) 3.dp else 1.dp,
                                             color = if (isSelected) EmeraldPrimary else Color.Transparent,
-                                            shape = RoundedCornerShape(14.dp)
+                                            shape = RoundedCornerShape(12.dp)
                                         )
                                 ) {
-                                    val resId = if (key == "mosque_sunset") R.drawable.img_mosque_sunset
-                                    else R.drawable.img_mosque_spiritual
-
+                                    val resId = asset.localRes ?: R.drawable.img_mosque_sunset
                                     Image(
                                         painter = painterResource(id = resId),
-                                        contentDescription = title,
+                                        contentDescription = asset.title,
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier.fillMaxSize()
                                     )
@@ -321,28 +364,29 @@ fun CardCreatorScreen(viewModel: CumaViewModel) {
                                         Box(
                                             modifier = Modifier
                                                 .align(Alignment.TopEnd)
-                                                .padding(6.dp)
-                                                .size(24.dp)
-                                                .background(EmeraldPrimary, RoundedCornerShape(12.dp)),
+                                                .padding(4.dp)
+                                                .size(22.dp)
+                                                .background(EmeraldPrimary, CircleShape),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 Icons.Default.Check,
                                                 contentDescription = "Seçili",
                                                 tint = Color.White,
-                                                modifier = Modifier.size(16.dp)
+                                                modifier = Modifier.size(14.dp)
                                             )
                                         }
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.height(6.dp))
+                                Spacer(modifier = Modifier.height(4.dp))
 
                                 Text(
-                                    text = title,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    text = asset.tag,
+                                    style = MaterialTheme.typography.labelSmall,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) EmeraldPrimary else MaterialTheme.colorScheme.onSurface
+                                    color = if (isSelected) EmeraldPrimary else MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1
                                 )
                             }
                         }
@@ -353,58 +397,144 @@ fun CardCreatorScreen(viewModel: CumaViewModel) {
 
         item { Spacer(modifier = Modifier.height(16.dp)) }
 
-        // Card Settings: Signature & Merge
+        // Section 2: Advanced Typography & Frame Designer
         item {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("card_settings_section"),
+                    .testTag("typography_designer_section"),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Kart Özelleştirme & İmza",
+                        text = "2. Yazı & Tipografi Tasarımı",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
+                    Text(
+                        text = "Yazı tipini, çerçeve stilini, rengi ve boyutu özelleştirin.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
+                    // Font style selection
+                    Text(
+                        text = "Yazı Tipi Stili:",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        fontStyles.forEach { (style, label) ->
+                            FilterChip(
+                                selected = currentSchedule.fontStyle == style,
+                                onClick = { viewModel.updateFontStyle(style) },
+                                label = { Text(label, fontSize = 12.sp) }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Frame style selection
+                    Text(
+                        text = "Çerçeve ve Bordür Tasarımı:",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        frameStyles.forEach { (style, label) ->
+                            FilterChip(
+                                selected = currentSchedule.frameStyle == style,
+                                onClick = { viewModel.updateFrameStyle(style) },
+                                label = { Text(label, fontSize = 12.sp) }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Text Color selection
+                    Text(
+                        text = "Yazı Rengi:",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        colorOptions.forEach { (hex, label) ->
+                            val isColorSelected = currentSchedule.textColorHex.equals(hex, ignoreCase = true)
+                            AssistChip(
+                                onClick = { viewModel.updateTextColorHex(hex) },
+                                label = { Text(label, fontSize = 12.sp) },
+                                leadingIcon = {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(android.graphics.Color.parseColor(hex)))
+                                            .border(1.dp, Color.Gray, CircleShape)
+                                    )
+                                },
+                                colors = if (isColorSelected) {
+                                    AssistChipDefaults.assistChipColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                                } else AssistChipDefaults.assistChipColors()
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Text size slider
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Mesajı Resimle Birleştir",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "Seçili dua ve ayeti resmin üzerine yazarak tek bir kart resmi oluşturur.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        Switch(
-                            checked = currentSchedule.mergeTextOnImage,
-                            onCheckedChange = { viewModel.toggleMergeTextOnImage(it) }
+                        Text(
+                            text = "Yazı Boyutu:",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "%.1fx".format(currentSchedule.textSizeModifier),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = EmeraldPrimary,
+                            fontWeight = FontWeight.Bold
                         )
                     }
+                    Slider(
+                        value = currentSchedule.textSizeModifier,
+                        onValueChange = { viewModel.updateTextSizeModifier(it) },
+                        valueRange = 0.8f..1.4f,
+                        steps = 5,
+                        modifier = Modifier.testTag("text_size_slider")
+                    )
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
+                    // Signature input
                     OutlinedTextField(
                         value = signatureInput,
                         onValueChange = {
                             signatureInput = it
                             viewModel.updateSenderSignature(it)
                         },
-                        label = { Text("Gönderen İmzası (Kartın Altı)") },
-                        placeholder = { Text("Örn: Ahmet Yılmaz ve Ailesi") },
+                        label = { Text("Gönderen İmzası (Kartın Altına Eklenir)") },
+                        placeholder = { Text("Örn: Akın Akıncı ve Ailesi") },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -416,5 +546,13 @@ fun CardCreatorScreen(viewModel: CumaViewModel) {
         }
 
         item { Spacer(modifier = Modifier.height(80.dp)) }
+    }
+
+    if (showShareSheet) {
+        SocialShareSheet(
+            message = currentMessage?.content ?: "Hayırlı Cumalar",
+            imageUri = previewUri,
+            onDismiss = { showShareSheet = false }
+        )
     }
 }
